@@ -31,7 +31,6 @@ export default {
   width: 60px;
   /*background-color: red;*/
 }
-
 .center {
   flex: 1;
   /*background-color: yellow;*/

@@ -3,16 +3,19 @@
     <nav-bar class="home-nav">
       <div slot="center">购物街</div>
     </nav-bar>
+    <tab-control :title="['流行','精选','新款']" @tabClick="tabClick" ref="tabControl1" class="tabContent"
+                 v-show="isTabFixed"></tab-control>
     <scroll class="content"
             ref="scroll"
             :probe-type="3"
             @scroll="contentScroll"
             :pull-up-load="true"
             @pullingUp="loadMore">
-      <home-swiper :banner="banner"></home-swiper>
+      <home-swiper :banner="banner" @swiperImageLoad="swiperImageLoad"></home-swiper>
+
       <recommend-vive :recommend="recommend"></recommend-vive>
       <feature></feature>
-      <tab-control :title="['流行','精选','新款']" class="tab-control" @tabClick="tabClick"></tab-control>
+      <tab-control :title="['流行','精选','新款']" @tabClick="tabClick" ref="tabControl2"></tab-control>
       <good-list :goods="showGoods"></good-list>
     </scroll>
     <BackTop @click.native="backClick" v-show="isShow"></BackTop>
@@ -20,7 +23,7 @@
 
 </template>
 <script>
-import NavBar from "@/common/navbar/NavBar";
+import NavBar from "@/components/common/navbar/NavBar";
 import {getHomeMultiData, getGoodsData} from "@/network/home";
 import HomeSwiper from "@/views/home/childComps/HomeSwiper";
 import RecommendVive from "@/views/home/childComps/RecommendVive";
@@ -29,6 +32,7 @@ import TabControl from "@/components/content/tabControl/TabControl";
 import GoodList from "@/components/content/goods/GoodList";
 import scroll from "@/components/common/scroll/scroll";
 import BackTop from "@/components/content/backTop/BackTop";
+import {debounce} from "@/common/utils";
 
 export default {
   name: "Hone",
@@ -44,7 +48,10 @@ export default {
 
       },
       currentType: 'pop',
-      isShow:false
+      isShow: false,
+      tabOffsetTop: 0,
+      isTabFixed: false,
+      savey: 0
     }
   },
   computed: {
@@ -71,6 +78,15 @@ export default {
     this.getGoodsData('sell');
 
   },
+  mounted() {
+    //监听图片
+    const refresh = debounce(this.$refs.scroll.refresh, 50)
+    this.$bus.$on('homeItemImageLoad', () => {
+      // console.log('aaa');
+      refresh();
+    });
+
+  },
   methods: {
     // /**事件监听*/
     tabClick(index) {
@@ -86,23 +102,39 @@ export default {
           this.currentType = 'sell';
           break;
       }
+      this.$refs.tabControl1.currentIndex = index;
+      this.$refs.tabControl2.currentIndex = index;
     },
-    contentScroll(position){
-      if(position.y<=-1000){
-        this.isShow=true
+    contentScroll(position) {
+      //判断返回顶部是否显示
+      if (position.y <= (-1000)) {
+        this.isShow = true
+      } else {
+        this.isShow = false
       }
-      else{
-        this.isShow=false
+      //判断“精选..” 是否吸顶（position ：fixed）
+      if ((-position.y) > this.tabOffsetTop) {
+        this.isTabFixed = true
+      } else {
+        this.isTabFixed = false
       }
+
+
     },
-    loadMore(){
+    loadMore() {
       console.log('aa');
       this.getGoodsData(this.currentType);
 
     },
-    backClick(){
-      this.$refs.scroll.ScrollTo(0,0);
+    backClick() {
+      this.$refs.scroll.ScrollTo(0, 0);
     },
+    swiperImageLoad() {
+      this.tabOffsetTop = this.$refs.tabControl1.$el.offsetTop;
+      this.tabOffsetTop = this.$refs.tabControl2.$el.offsetTop;
+    },
+
+
     // /* 网络请求*/
     getHomeMultiData() {
       getHomeMultiData().then(res => {
@@ -124,30 +156,34 @@ export default {
       })
     },
 
+  },
+  activated() {
+    this.$refs.scroll.ScrollTo(0, this.savey, 0);
+    this.$refs.scroll.refresh()
+  },
+  deactivated() {
+
+    this.savey = this.$refs.scroll.scroll.y;
   }
+
+
 }
 </script>
 
 <style scoped>
 #home {
-  padding-top: 44px;
+  /*padding-top: 44px;*/
 }
 
 .home-nav {
   background-color: var(--color-tint);
   color: #fff;
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 9;
+  /*position: fixed;*/
+  /*left: 0;*/
+  /*right: 0;*/
+  /*top: 0;*/
+  /*z-index: 9;*/
 
-}
-
-.tab-control {
-  position: sticky;
-  top: 44px;
-  z-index: 9;
 }
 
 .content {
@@ -159,4 +195,8 @@ export default {
   right: 0;
 }
 
+.tabContent {
+  position: relative;
+  z-index: 9;
+}
 </style>
